@@ -90,3 +90,47 @@ void randomize_matrix(float **f, int H, int W) {
         }
     }
 }
+
+void write_matrix(char *filename, float **f, int H, int W) {
+    FILE *fp;
+
+    // Open the file in write mode ("w")
+    fp = fopen(filename, "w");
+
+    if (fp == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Write each float to the file, followed by a newline
+    fprintf(fp, "%i %i\n", W, H);
+    for (int map_r = 0; map_r < W; map_r++) {
+        for (int map_c = 0; map_c < H; map_c++) {
+            fprintf(fp, "%.3f ", f[map_r][map_c]); // Format to 2 decimal places
+        }
+        fprintf(fp, "\n");
+    }
+
+    // Close the file
+    fclose(fp);
+}
+
+void free_matrix(float **f, int H, int W) {
+    if (!f) return;
+    int rows_num = W;
+    for (int row = 0; row < rows_num; row++) {
+        free(f[row]);
+    }
+    free(f);
+}
+
+int main(int argc, char *argv[]) {
+    int opt;
+
+    while((opt = getopt(argc, argv, "f:g:o:H:W:w:h:t")) != -1) 
+    {
+        switch(opt) 
+        { 
+        } 
+    } printf("\n");
+}
