@@ -1,0 +1,77 @@
+//Student Number: 23380159
+//By Amir Husain
+#include "Pconv2d.h"
+#include <omp.h>
+#include <stdio.h>
+
+// 2D convolution with same padding
+void Pconv2d(float *f, long long int H, long long int W, float *g, long long int kH, long long int kW, float *output, int Ti, int Tj) {
+    // For odd-sized kernels, the anchor is the exact center.
+    // For even-sized kernels, anchor is chosen so the kernel is slightly top-left biased.
+    int anchorH = kH / 2 - 1;
+    int anchorW = kW / 2 - 1;
+    if (kH % 2 == 1){
+        anchorH = kH / 2;
+        anchorW = kW / 2;
+    }
+
+    if (Ti == 0 || Tj == 0){
+        // Loop over every element in the feature
+        printf("Schedule: static\n");
+        #pragma omp parallel for collapse(2) schedule(static)
+        for (int i = 0; i < H; i++) {
+            for (int j = 0; j < W; j++) {
+                float sum = 0.0f;
+
+                // Loop over every element in the kernel
+                #pragma omp simd reduction(+:sum)
+                for (int m = 0; m < kH; m++) {
+                    for (int n = 0; n < kW; n++) {
+                        // The corresponding input coordinates
+                        int x = i + m - anchorH;
+                        int y = j + n - anchorW;
+                        
+                        // If input coordinates are inside bounds, fetch value
+                        // Otherwise, treat as zero (zero-padding)
+                        float val = 0.0f;
+                        if (x >= 0 && x < H && y >= 0 && y < W) {
+                            val = f[x * W + y];
+                        }
+                        // Multiply input value by kernel value and accumulate
+                        sum += val * g[m * kW + n];
+                    }
+                }
+                output[i * W + j] = sum;
+            }
+        }
+    }
+
+
+    else{
+        printf("Schedule: static\n");
+        printf("Tile size: %d x %d\n", Ti, Tj);
+        #pragma omp parallel for collapse(2) schedule(static)
+        for (int bi = 0; bi < H; bi += Ti) {
+            for (int bj = 0; bj < W; bj += Tj) {
+                for (int i = bi; i < bi + Ti && i < H; i++) {
+                    for (int j = bj; j < bj + Tj && j < W; j++) {
+                        float sum = 0.0f;
+                        #pragma omp simd reduction(+:sum)
+                        for (int m = 0; m < kH; m++) {
+                            for (int n = 0; n < kW; n++) {
+                                int x = i + m - anchorH;
+                                int y = j + n - anchorW;
+                                float val = 0.0f;
+                                if (x >= 0 && x < H && y >= 0 && y < W) {
+                                    val = f[x * W + y];
+                                }
+                                sum += val * g[m * kW + n];
+                            }
+                        }
+                        output[i * W + j] = sum;
+                    }
+                }
+            }
+        }
+    }
+}
