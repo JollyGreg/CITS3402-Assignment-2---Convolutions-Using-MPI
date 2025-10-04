@@ -7,9 +7,9 @@
 // - input handling
 //      - DONE (check?): kH and kW handling (not sure how to have multiple character flags)
 // - DONE: generate/save matrix
-// - convolution basics from input
-// - padding logic
-// - stride logic
+// - DONE: convolution basics from input
+// - DONE: padding logic
+// - DONE: stride logic
 // - introducing MPI
 // - testing
 // - report writting
@@ -100,7 +100,6 @@ int main(int argc, char *argv[]) {
     char *feature_map_file = NULL;
     char *kernel_file = NULL;
     char *output_file = NULL;
-    int test = 0;
 
     int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
 
@@ -177,7 +176,9 @@ int main(int argc, char *argv[]) {
     print_matrix(g, kH, kW);   
 
     // Start timer and convolute
-    float *o = alloc_matrix(H, W);
+    int o_H = (H + sH - 1) / sH;
+    int o_W = (W + sW - 1) / sW;
+    float *o = alloc_matrix(o_H, o_W);
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
     conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
@@ -188,9 +189,9 @@ int main(int argc, char *argv[]) {
     double WALL_time = WALL_end - WALL_begin;
 
     // Save output if requested
-    if (o) save_matrix(output_file, o, H, W);
+    if (o) save_matrix(output_file, o, o_H, o_W);
     printf("Output (o)\n");
-    print_matrix(o, H, W);  
+    print_matrix(o, o_H, o_W);  
 
     // Performance
     printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);

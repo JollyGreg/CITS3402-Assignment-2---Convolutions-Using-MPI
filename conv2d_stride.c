@@ -10,17 +10,21 @@
 void conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output) {
     // For odd-sized kernels, the anchor is the exact center.
     // For even-sized kernels, anchor is chosen so the kernel is slightly top-left biased.
-    int anchorH = kH / 2 - 1;
-    int anchorW = kW / 2 - 1;
-    if (kH % 2 == 1){
-        anchorH = kH / 2;
-        anchorW = kW / 2;
+    int anchorH = kH / 2;
+    int anchorW = kW / 2;
+    if (kH % 2 == 0){
+        anchorH = kH / 2 - 1;
+    }
+    if (kW % 2 == 0){
+        anchorW = kW / 2 - 1;
     }
 
+    // Initialize output counter
+    int out_idx = 0;
 
-    // Loop over every element in the feature
-    for (int i = 0; i < H; i++) {
-        for (int j = 0; j < W; j++) {
+    // Loop over output positions with stride
+    for (int i = 0; i < H; i += sH) {
+        for (int j = 0; j < W; j += sW) {
             float sum = 0.0f;
 
             // Loop over every element in the kernel
@@ -40,8 +44,9 @@ void conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int
                     sum += val * g[m * kW + n];
                 }
             }
-            output[i * W + j] = sum;
+            // Store result in output array (flattened)
+            output[out_idx] = sum;
+            out_idx++;
         }
     }
-
 }
