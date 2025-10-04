@@ -1,7 +1,17 @@
 // Student Name: Liam Bush
 // Student Number: 24227223
-// Student Name:
-// Student Number: 
+// Student Name: Amir Husain
+// Student Number: 23380159
+
+// To Do:
+// - input handling
+//      - kH and kW handling (not sure how to have multiple character flags)
+// - convolution basics from input
+// - padding logic
+// - stride logic
+// - introducing MPI
+// - testing
+// - report writting
 
 #include <stdio.h> 
 #include <unistd.h>
@@ -10,6 +20,9 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
+
+#include <bits/getopt_core.h>
+
 
 // Prototypes
 void create_matrix(char *filename, float **f, int H, int W);
@@ -46,14 +59,11 @@ void create_matrix(char *filename, float **f, int H, int W) {
     }
 
     // Initialize Matrix and store the contents of the file
-    int rows_num = W;
-    int cols_num = H;
-
-    f = malloc(sizeof(float*) * (rows_num));
+    f = malloc(sizeof(float*) * (W));
     if (!f) { perror("malloc failure, initializing rows"), exit(EXIT_FAILURE); }
 
-    for (int row = 0; row < rows_num; row++) {
-        f[row] = calloc(cols_num, sizeof(float));
+    for (int row = 0; row < W; row++) {
+        f[row] = calloc(H, sizeof(float));
         if (!f[row]) { perror("calloc failure"), exit(EXIT_FAILURE); }
     }
 
@@ -72,14 +82,11 @@ void create_matrix(char *filename, float **f, int H, int W) {
 
 void randomize_matrix(float **f, int H, int W) {
     // Follows same structure as create_matrix, just has rand input
-    int rows_num = W;
-    int cols_num = H;
-
-    f = malloc(sizeof(float*) * (rows_num));
+    f = malloc(sizeof(float*) * (W));
     if (!f) { perror("malloc failure, initializing rows"), exit(EXIT_FAILURE); }
 
-    for (int row = 0; row < rows_num; row++) {
-        f[row] = calloc(cols_num, sizeof(float));
+    for (int row = 0; row < W; row++) {
+        f[row] = calloc(H, sizeof(float));
         if (!f[row]) { perror("calloc failure"), exit(EXIT_FAILURE); }
     }
 
@@ -117,8 +124,7 @@ void write_matrix(char *filename, float **f, int H, int W) {
 
 void free_matrix(float **f, int H, int W) {
     if (!f) return;
-    int rows_num = W;
-    for (int row = 0; row < rows_num; row++) {
+    for (int row = 0; row < W; row++) {
         free(f[row]);
     }
     free(f);
@@ -127,10 +133,58 @@ void free_matrix(float **f, int H, int W) {
 int main(int argc, char *argv[]) {
     int opt;
 
-    while((opt = getopt(argc, argv, "f:g:o:H:W:w:h:t")) != -1) 
+    char *feature_map_file = NULL;
+    char *kernel_file = NULL;
+    char *output = NULL;
+    int test = 0;
+
+    char *H = NULL;
+    char *W = NULL;
+    char *kH = NULL;
+    char *kW = NULL;
+    char *sH = NULL;
+    char *sW = NULL;
+
+    while((opt = getopt(argc, argv, "f:g:H:W:kH:kW:sH:sW:o:")) != -1) 
     {
         switch(opt) 
         { 
+            case 'f': 
+                printf("Feature Map: %s\n", optarg); 
+                feature_map_file = optarg;
+                break; 
+            case 'g': 
+                printf("Kernel: %s\n", optarg);
+                kernel_file = optarg;
+                break; 
+            case 'H':
+                printf("Map Height:%s\n", optarg);
+                H = optarg;
+                break;
+            case 'W':
+                printf("Map Width:%s\n", optarg);
+                W = optarg;
+                break; 
+            case 'kH': // Not sure how to handle multiple char flags
+                printf("Kernel Height:%s\n", optarg);
+                kH = optarg;
+                break; 
+            case 'kW':
+                printf("Kernel Width:%s\n", optarg);
+                kW = optarg;
+                break; 
+            case 'sH':
+                printf("Stride Height:%s\n", optarg);
+                sH = optarg;
+                break; 
+            case 'sW':
+                printf("Stride Width:%s\n", optarg);
+                sW = optarg;
+                break; 
+            case 'o': 
+                printf("Output File:%s\n", optarg);
+                output = optarg;
+                break; 
         } 
     } printf("\n");
 }
