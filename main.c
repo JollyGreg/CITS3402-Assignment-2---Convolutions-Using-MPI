@@ -174,4 +174,11 @@ int main(int argc, char *argv[]) {
     print_matrix(f, H, W);
     printf("Kernels (g)\n");
     print_matrix(g, kH, kW);   
+
+    // Save output if requested
+	if (output) save_2d(output, output, H, W);
+
+    free_2d(f);
+    free_2d(g);
+    free_2d(output);
 }
