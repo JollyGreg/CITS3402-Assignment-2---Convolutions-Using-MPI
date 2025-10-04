@@ -5,7 +5,8 @@
 
 // To Do:
 // - input handling
-//      - kH and kW handling (not sure how to have multiple character flags)
+//      - DONE (check?): kH and kW handling (not sure how to have multiple character flags)
+// - DONE generate/save matrix
 // - convolution basics from input
 // - padding logic
 // - stride logic
@@ -20,6 +21,8 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
+
+#include "matrix.h"
 
 #include <bits/getopt_core.h>
 
@@ -48,40 +51,8 @@ void conv2d_stride(
 
 };
 
-void create_matrix(char *filename, float **f, int H, int W) {
-    // Open a file in read mode
-    FILE *fptr = fopen(filename, "r");
-    if (fptr == NULL) { perror("Error opening file"); exit(EXIT_FAILURE); }
-
-    // Store the content of the header
-    if(fscanf(fptr, "%d %d", &W, &H) != 2) {
-        perror("Header read Failed"); fclose(fptr) ; exit(EXIT_FAILURE);
-    }
-
-    // Initialize Matrix and store the contents of the file
-    f = malloc(sizeof(float*) * (W));
-    if (!f) { perror("malloc failure, initializing rows"), exit(EXIT_FAILURE); }
-
-    for (int row = 0; row < W; row++) {
-        f[row] = calloc(H, sizeof(float));
-        if (!f[row]) { perror("calloc failure"), exit(EXIT_FAILURE); }
-    }
-
-    // Read the rest of the lines
-    for (int row = 0; row < W; row++) {
-        for (int col = 0; col < H; col++) {
-            if (fscanf(fptr, "%f", &f[row][col]) != 1) {
-                perror("data read failed"); fclose(fptr); exit(EXIT_FAILURE);
-            }
-        }
-    }
-
-    // Close the file
-    fclose(fptr);
-}
-
 void randomize_matrix(float **f, int H, int W) {
-    // Follows same structure as create_matrix, just has rand input
+    // Follows same structure as load_matrix, just has rand input
     f = malloc(sizeof(float*) * (W));
     if (!f) { perror("malloc failure, initializing rows"), exit(EXIT_FAILURE); }
 
@@ -122,14 +93,6 @@ void write_matrix(char *filename, float **f, int H, int W) {
     fclose(fp);
 }
 
-void free_matrix(float **f, int H, int W) {
-    if (!f) return;
-    for (int row = 0; row < W; row++) {
-        free(f[row]);
-    }
-    free(f);
-}
-
 int main(int argc, char *argv[]) {
     // Seed random number generator
     srand(42);
@@ -152,11 +115,63 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i], "-o")) output = argv[++i];
         else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-t")) test = 1;
         else {
             printf("Unknown argument: %s\n", argv[i]);
             exit(EXIT_FAILURE);
         }
 	}
 
+    float *f = NULL, *g = NULL;
+    // Feature matrix
+    // Dimensions present: generate matrix
+    if (H > 0 && W > 0) {
+        f = alloc_matrix(H, W);
+        for (int i = 0; i < H; i++) {
+            for (int j = 0; j < W; j++) {
+                f[i * W + j] = (float) rand() / RAND_MAX;
+            }
+        }
+
+        // File present: save
+        if (feature_map_file){
+            save_matrix(feature_map_file, f, H, W);
+        }
+    } 
+
+    // Only file no dimensions: load
+	else if (feature_map_file) {
+		f = load_matrix(feature_map_file, &H, &W);
+	} 
+
+    // Kernel matrix
+    // Dimensions present: generate 
+    if (kH > 0 && kW > 0) {
+        g = alloc_matrix(kH, kW);
+        for (int i = 0; i < kH; i++) {
+            for (int j = 0; j < kW; j++) {
+                g[i * kW + j] = (float) rand() / RAND_MAX;
+            }
+        }
+        // File present: save
+        if (kernel_file){
+            save_matrix(kernel_file, g, kH, kW);
+        }
+    } 
+
+    // Only file: load
+	else if (kernel_file) {
+		g = load_matrix(kernel_file, &kH, &kW);
+	}
+
+    if (f == NULL || g == NULL){
+        printf("Failed to load matrices.\n");
+        if (f) free(f);
+        if (g) free(g);
+        return 0;
+    }
+
+    printf("Features (f)\n");
+    print_matrix(f, H, W);
+    printf("Kernels (g)\n");
+    print_matrix(g, kH, kW);   
 }
