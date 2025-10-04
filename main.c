@@ -6,7 +6,7 @@
 // To Do:
 // - input handling
 //      - DONE (check?): kH and kW handling (not sure how to have multiple character flags)
-// - DONE generate/save matrix
+// - DONE: generate/save matrix
 // - convolution basics from input
 // - padding logic
 // - stride logic

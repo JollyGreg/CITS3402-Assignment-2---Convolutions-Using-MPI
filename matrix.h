@@ -1,3 +1,8 @@
+// Student Name: Liam Bush
+// Student Number: 24227223
+// Student Name: Amir Husain
+// Student Number: 23380159
+
 #ifndef MATRIX_IO_H
 #define MATRIX_IO_H
 

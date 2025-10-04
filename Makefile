@@ -1,5 +1,8 @@
-#Student Number: 23380159
-#By Amir Husain
+# Student Name: Liam Bush
+# Student Number: 24227223
+# Student Name: Amir Husain
+# Student Number: 23380159
+
 CC=gcc
 CFLAGS=-fopenmp -Wall
 
