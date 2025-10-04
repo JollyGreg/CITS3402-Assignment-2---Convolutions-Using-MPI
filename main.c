@@ -23,6 +23,7 @@
 #include <omp.h>
 
 #include "matrix.h"
+#include "conv2d_stride.h"
 
 #include <bits/getopt_core.h>
 
@@ -34,7 +35,7 @@ void randomize_matrix(float **f, int H, int W);
 
 void free_matrix(float **f, int H, int W);
 
-void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, int sW, float **output);
+// void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, int sW, float **output);
 // float **f, // input feature map (padded)
 // int H, int W, // global input size
 // float **g, // kernel
@@ -44,12 +45,11 @@ void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, i
 // MPI_Comm comm // communicator
 
 
-void conv2d_stride(
-    float **f, int H, int W, 
-    float **g, int kH, int kW, 
-    int sH, int sW, float **output) {
-
-};
+// void conv2d_stride(
+//    float **f, int H, int W, 
+//    float **g, int kH, int kW, 
+//    int sH, int sW, float **output) {
+//};
 
 void randomize_matrix(float **f, int H, int W) {
     // Follows same structure as load_matrix, just has rand input
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 
     char *feature_map_file = NULL;
     char *kernel_file = NULL;
-    char *output = NULL;
+    char *output_file = NULL;
     int test = 0;
 
     int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i], "-kW")) kW = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-f")) feature_map_file = argv[++i];
         else if (!strcmp(argv[i], "-g")) kernel_file = argv[++i];
-        else if (!strcmp(argv[i], "-o")) output = argv[++i];
+        else if (!strcmp(argv[i], "-o")) output_file = argv[++i];
         else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
         else {
@@ -170,12 +170,33 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    // Print the feature and kernel matrix
     printf("Features (f)\n");
     print_matrix(f, H, W);
     printf("Kernels (g)\n");
     print_matrix(g, kH, kW);   
 
+    // Start timer and convolute
+    float *o = alloc_matrix(H, W);
+    clock_t CPU_begin = clock();
+    double WALL_begin = omp_get_wtime(); 
+    conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
+    clock_t CPU_end = clock();
+    double WALL_end = omp_get_wtime(); 
+    
+    double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in s
+    double WALL_time = WALL_end - WALL_begin;
+
+    // Save output if requested
+    if (o) save_matrix(output_file, o, H, W);
+    printf("Output (o)\n");
+    print_matrix(o, H, W);  
+
+    // Performance
+    printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
+    printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
+
     free(f);
     free(g);
-    free(output);
+    free(o);
 }

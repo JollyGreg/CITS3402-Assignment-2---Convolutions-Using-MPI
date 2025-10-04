@@ -6,20 +6,20 @@
 CC=gcc
 CFLAGS=-fopenmp -Wall
 
-SRC=main.c matrix.c
+SRC=main.c matrix.c conv2d_stride.c
 OBJ=$(SRC:.c=.o)
-
+HEADERS=matrix.h conv2d_stride.h
 
 all: Convolution_stride
 
 Convolution_stride: $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $(OBJ)
 
-%.o: %.c
+%.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
-	./all: Convolution_stride $(ARGS)
+	./Convolution_stride $(ARGS)
 
 clean:
-	rm -f *.o all: Convolution_stride
+	rm -f *.o Convolution_stride
