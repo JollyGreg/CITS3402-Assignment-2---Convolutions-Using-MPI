@@ -189,11 +189,12 @@ int main(int argc, char *argv[]) {
     double WALL_time = WALL_end - WALL_begin;
 
     // Save output if requested
-    if (o) save_matrix(output_file, o, o_H, o_W);
+    if (output_file) save_matrix(output_file, o, o_H, o_W);
     printf("Output (o)\n");
     print_matrix(o, o_H, o_W);  
 
     // Performance
+    printf("sH = %d, sW = %d\n", sH, sW);
     printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
     printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
 
