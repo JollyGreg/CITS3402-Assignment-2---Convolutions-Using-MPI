@@ -3,8 +3,8 @@
 // Student Name: Amir Husain
 // Student Number: 23380159
 
-#ifndef MATRIX_IO_H
-#define MATRIX_IO_H
+#ifndef MATRIX
+#define MATRIX
 
 float *alloc_matrix(int H, int W);
 void save_matrix(const char *filename, float *arr, int H, int W);
