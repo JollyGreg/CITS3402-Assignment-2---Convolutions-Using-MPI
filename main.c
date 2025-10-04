@@ -131,60 +131,32 @@ void free_matrix(float **f, int H, int W) {
 }
 
 int main(int argc, char *argv[]) {
-    int opt;
+    // Seed random number generator
+    srand(42);
 
     char *feature_map_file = NULL;
     char *kernel_file = NULL;
     char *output = NULL;
     int test = 0;
 
-    char *H = NULL;
-    char *W = NULL;
-    char *kH = NULL;
-    char *kW = NULL;
-    char *sH = NULL;
-    char *sW = NULL;
+    int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
 
-    while((opt = getopt(argc, argv, "f:g:H:W:kH:kW:sH:sW:o:")) != -1) 
-    {
-        switch(opt) 
-        { 
-            case 'f': 
-                printf("Feature Map: %s\n", optarg); 
-                feature_map_file = optarg;
-                break; 
-            case 'g': 
-                printf("Kernel: %s\n", optarg);
-                kernel_file = optarg;
-                break; 
-            case 'H':
-                printf("Map Height:%s\n", optarg);
-                H = optarg;
-                break;
-            case 'W':
-                printf("Map Width:%s\n", optarg);
-                W = optarg;
-                break; 
-            case 'kH': // Not sure how to handle multiple char flags
-                printf("Kernel Height:%s\n", optarg);
-                kH = optarg;
-                break; 
-            case 'kW':
-                printf("Kernel Width:%s\n", optarg);
-                kW = optarg;
-                break; 
-            case 'sH':
-                printf("Stride Height:%s\n", optarg);
-                sH = optarg;
-                break; 
-            case 'sW':
-                printf("Stride Width:%s\n", optarg);
-                sW = optarg;
-                break; 
-            case 'o': 
-                printf("Output File:%s\n", optarg);
-                output = optarg;
-                break; 
-        } 
-    } printf("\n");
+    // Parse arguments
+	for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-H")) H = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-W")) W = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-kH")) kH = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-kW")) kW = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-f")) feature_map_file = argv[++i];
+        else if (!strcmp(argv[i], "-g")) kernel_file = argv[++i];
+        else if (!strcmp(argv[i], "-o")) output = argv[++i];
+        else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-t")) test = 1;
+        else {
+            printf("Unknown argument: %s\n", argv[i]);
+            exit(EXIT_FAILURE);
+        }
+	}
+
 }
