@@ -5,17 +5,12 @@
 
 // To Do:
 // - input handling
-//      - DONE (check?) (looks awesome, haven't seen that way of doing it before): kH and kW handling (not sure how to have multiple character flags)
+//      - DONE (check?): kH and kW handling (not sure how to have multiple character flags)
 // - DONE: generate/save matrix
 // - DONE: convolution basics from input
 // - DONE: padding logic
 // - DONE: stride logic
 // - introducing MPI
-//      - DONE: Initializing MPI
-//      - initializing arrays for slave processes
-//      - distributing array (could be done different ways and tested to find most efficient approach)
-//      - doing convolutions on array
-//      - gathering all answers together
 // - testing
 // - report writting
 
@@ -26,7 +21,6 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
-#include <mpi.h>
 
 #include "matrix.h"
 #include "conv2d_stride.h"
@@ -40,7 +34,6 @@ void write_matrix(char *filename, float **f, int H, int W);
 void randomize_matrix(float **f, int H, int W);
 
 void free_matrix(float **f, int H, int W);
-void mpi_conv2d_stride(int argc, char *argv[], float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output);
 
 // void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, int sW, float **output);
 // float **f, // input feature map (padded)
@@ -91,48 +84,13 @@ void write_matrix(char *filename, float **f, int H, int W) {
     fprintf(fp, "%i %i\n", W, H);
     for (int map_r = 0; map_r < W; map_r++) {
         for (int map_c = 0; map_c < H; map_c++) {
-            fprintf(fp, "%.3f ", f[map_r][map_c]); // Format to 3 decimal places
+            fprintf(fp, "%.3f ", f[map_r][map_c]); // Format to 2 decimal places
         }
         fprintf(fp, "\n");
     }
 
     // Close the file
     fclose(fp);
-}
-
-// I'm making this its own function to seperate the code out to make it easier to read but I'm not sure how we really wanna do this
-// we could have main use MPI_Init and then have the rest of the code in conv2d_stride? I think that would be more readable
-// because of the weird pointer passing thats going on here but I wanted your thoughts
-// https://www.geeksforgeeks.org/c/sum-of-an-array-using-mpi/
-void mpi_conv2d_stride(int argc, char *argv[], float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *o) {
-    MPI_Init(&argc, &argv);
-
-    int pid, np;
-    MPI_Comm_rank(MPI_COMM_WORLD, &pid);
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
-
-    MPI_Status status;
-    int array_split_per_process = kH*kW / np;
-    printf("each slave process will compute in increments of %i\n", array_split_per_process);
-
-    // master process that gathers output together
-    if (pid == 0) {
-        
-        for (int i = 1; i < np - 1; i++) {
-            // each slave process returns their output 
-            MPI_Recv(&array_split_per_process, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
-        }
-    } 
-    // slave processes, receive arrays and compute using conv2d_stride
-    else {
-        int index = array_split_per_process * pid;
-        printf("pid: %i, index: %i\n", pid, index);
-
-        // allocate a temporary matrix for just the size the process needs?
-        //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
-    }
-
-    MPI_Finalize();
 }
 
 int main(int argc, char *argv[]) {
@@ -221,15 +179,13 @@ int main(int argc, char *argv[]) {
     int o_H = (H + sH - 1) / sH;
     int o_W = (W + sW - 1) / sW;
     float *o = alloc_matrix(o_H, o_W);
-    
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
-
-    mpi_conv2d_stride(&argc, &argv, f, H, W, g, kH, kW, sH, sW, o);
-
+    conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
     clock_t CPU_end = clock();
     double WALL_end = omp_get_wtime(); 
-    double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in seconds
+    
+    double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in s
     double WALL_time = WALL_end - WALL_begin;
 
     // Save output if requested

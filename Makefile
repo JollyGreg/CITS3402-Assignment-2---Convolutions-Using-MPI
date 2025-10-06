@@ -3,7 +3,7 @@
 # Student Name: Amir Husain
 # Student Number: 23380159
 
-CC=mpicc
+CC=gcc
 CFLAGS=-fopenmp -Wall
 
 SRC=main.c matrix.c conv2d_stride.c

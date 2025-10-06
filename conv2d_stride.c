@@ -5,10 +5,9 @@
 
 #include "conv2d_stride.h"
 #include <omp.h>
-#include <mpi.h>
 #include <stdio.h>
 
-void conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {
+void conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output) {
     // For odd-sized kernels, the anchor is the exact center.
     // For even-sized kernels, anchor is chosen so the kernel is slightly top-left biased.
     int anchorH = kH / 2;
