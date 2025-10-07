@@ -12,9 +12,8 @@
 // - DONE: stride logic
 // - introducing MPI
 //      - DONE: Initializing MPI
-//      - initializing arrays for slave processes
-//      - distributing array (could be done different ways and tested to find most efficient approach)
 //      - doing convolutions on array
+//          - need to have edit the conv2d_stride func so that each process only does its share of the work
 //      - gathering all answers together
 // - testing
 // - report writting
@@ -40,7 +39,6 @@ void write_matrix(char *filename, float **f, int H, int W);
 void randomize_matrix(float **f, int H, int W);
 
 void free_matrix(float **f, int H, int W);
-void mpi_conv2d_stride(int argc, char *argv[], float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output);
 
 // void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, int sW, float **output);
 // float **f, // input feature map (padded)
@@ -100,40 +98,7 @@ void write_matrix(char *filename, float **f, int H, int W) {
     fclose(fp);
 }
 
-// I'm making this its own function to seperate the code out to make it easier to read but I'm not sure how we really wanna do this
-// we could have main use MPI_Init and then have the rest of the code in conv2d_stride? I think that would be more readable
-// because of the weird pointer passing thats going on here but I wanted your thoughts
 // https://www.geeksforgeeks.org/c/sum-of-an-array-using-mpi/
-void mpi_conv2d_stride(int argc, char *argv[], float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *o) {
-    MPI_Init(&argc, &argv);
-
-    int pid, np;
-    MPI_Comm_rank(MPI_COMM_WORLD, &pid);
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
-
-    MPI_Status status;
-    int array_split_per_process = kH*kW / np;
-    printf("each slave process will compute in increments of %i\n", array_split_per_process);
-
-    // master process that gathers output together
-    if (pid == 0) {
-        
-        for (int i = 1; i < np - 1; i++) {
-            // each slave process returns their output 
-            MPI_Recv(&array_split_per_process, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
-        }
-    } 
-    // slave processes, receive arrays and compute using conv2d_stride
-    else {
-        int index = array_split_per_process * pid;
-        printf("pid: %i, index: %i\n", pid, index);
-
-        // allocate a temporary matrix for just the size the process needs?
-        //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
-    }
-
-    MPI_Finalize();
-}
 
 int main(int argc, char *argv[]) {
     // Seed random number generator
@@ -225,7 +190,9 @@ int main(int argc, char *argv[]) {
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
 
-    mpi_conv2d_stride(&argc, &argv, f, H, W, g, kH, kW, sH, sW, o);
+    MPI_Init(&argc, &argv);
+    mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
+    MPI_Finalize();
 
     clock_t CPU_end = clock();
     double WALL_end = omp_get_wtime(); 

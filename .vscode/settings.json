@@ -2,6 +2,9 @@
     "files.associations": {
         "omp.h": "c",
         "string.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "conv2d_stride.h": "c",
+        "matrix.h": "c",
+        "stdlib.h": "c"
     }
 }

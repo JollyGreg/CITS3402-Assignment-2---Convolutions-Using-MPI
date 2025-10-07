@@ -5,11 +5,17 @@
 # Using the Program
 ```make```
 
-generate matrix and save to the files given
+### Using MPI with convolutions
+
+```-n``` flag decides the number of processes that will be created using mpi
+
+```mpiexec Convolution_stride -f "data/f_10x10" -g "data/g_3x3" -o "data/o_10x10" -H 10 -W 10 -kH 3 -kW 3 -sH 1 -sW 1```
+
+### generate matrix and save to the files given
 
 ```./Convolution_stride -f "data/f_10x10" -g "data/g_3x3" -o "data/o_10x10" -H 10 -W 10 -kH 3 -kW 3 -sH 1 -sW 1```
 
-load matrix from files and save to the output file
+### load matrix from files and save to the output file
 
 ```./Convolution_stride -f "data/f_10x10" -g "data/g_3x3" -o "data/o_10x10" -sH 1 -sW 1```
 
