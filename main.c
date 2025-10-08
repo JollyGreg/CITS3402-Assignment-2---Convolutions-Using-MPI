@@ -101,115 +101,153 @@ void write_matrix(char *filename, float **f, int H, int W) {
 // https://www.geeksforgeeks.org/c/sum-of-an-array-using-mpi/
 
 int main(int argc, char *argv[]) {
-    // Seed random number generator
-    srand(42);
-
-    char *feature_map_file = NULL;
-    char *kernel_file = NULL;
-    char *output_file = NULL;
-
-    int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
-
-    // Parse arguments
-	for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-H")) H = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-W")) W = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-kH")) kH = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-kW")) kW = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-f")) feature_map_file = argv[++i];
-        else if (!strcmp(argv[i], "-g")) kernel_file = argv[++i];
-        else if (!strcmp(argv[i], "-o")) output_file = argv[++i];
-        else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
-        else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
-        else {
-            printf("Unknown argument: %s\n", argv[i]);
-            exit(EXIT_FAILURE);
-        }
-	}
-
-    float *f = NULL, *g = NULL;
-    // Feature matrix
-    // Dimensions present: generate matrix
-    if (H > 0 && W > 0) {
-        f = alloc_matrix(H, W);
-        for (int i = 0; i < H; i++) {
-            for (int j = 0; j < W; j++) {
-                f[i * W + j] = (float) rand() / RAND_MAX;
-            }
-        }
-
-        // File present: save
-        if (feature_map_file){
-            save_matrix(feature_map_file, f, H, W);
-        }
-    } 
-
-    // Only file no dimensions: load
-	else if (feature_map_file) {
-		f = load_matrix(feature_map_file, &H, &W);
-	} 
-
-    // Kernel matrix
-    // Dimensions present: generate 
-    if (kH > 0 && kW > 0) {
-        g = alloc_matrix(kH, kW);
-        for (int i = 0; i < kH; i++) {
-            for (int j = 0; j < kW; j++) {
-                g[i * kW + j] = (float) rand() / RAND_MAX;
-            }
-        }
-        // File present: save
-        if (kernel_file){
-            save_matrix(kernel_file, g, kH, kW);
-        }
-    } 
-
-    // Only file: load
-	else if (kernel_file) {
-		g = load_matrix(kernel_file, &kH, &kW);
-	}
-
-    if (f == NULL || g == NULL){
-        printf("Failed to load matrices.\n");
-        if (f) free(f);
-        if (g) free(g);
-        return 0;
-    }
-
-    // Print the feature and kernel matrix
-    printf("Features (f)\n");
-    print_matrix(f, H, W);
-    printf("Kernels (g)\n");
-    print_matrix(g, kH, kW);   
-
-    // Start timer and convolute
-    int o_H = (H + sH - 1) / sH;
-    int o_W = (W + sW - 1) / sW;
-    float *o = alloc_matrix(o_H, o_W);
-    
-    clock_t CPU_begin = clock();
-    double WALL_begin = omp_get_wtime(); 
-
     MPI_Init(&argc, &argv);
-    mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
+    int pid, np;
+    MPI_Comm_rank(MPI_COMM_WORLD, &pid);
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+
+    // master process
+    if (pid == 0) {
+        // Seed random number generator
+        srand(42);
+
+        char *feature_map_file = NULL;
+        char *kernel_file = NULL;
+        char *output_file = NULL;
+
+        int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
+
+        // Parse arguments
+        for (int i = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "-H")) H = (int)atoll(argv[++i]);
+            else if (!strcmp(argv[i], "-W")) W = (int)atoll(argv[++i]);
+            else if (!strcmp(argv[i], "-kH")) kH = (int)atoll(argv[++i]);
+            else if (!strcmp(argv[i], "-kW")) kW = (int)atoll(argv[++i]);
+            else if (!strcmp(argv[i], "-f")) feature_map_file = argv[++i];
+            else if (!strcmp(argv[i], "-g")) kernel_file = argv[++i];
+            else if (!strcmp(argv[i], "-o")) output_file = argv[++i];
+            else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
+            else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
+            else {
+                printf("Unknown argument: %s\n", argv[i]);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        float *f = NULL, *g = NULL;
+        // Feature matrix
+        // Dimensions present: generate matrix
+        if (H > 0 && W > 0) {
+            f = alloc_matrix(H, W);
+            for (int i = 0; i < H; i++) {
+                for (int j = 0; j < W; j++) {
+                    f[i * W + j] = (float) rand() / RAND_MAX;
+                }
+            }
+
+            // File present: save
+            if (feature_map_file){
+                save_matrix(feature_map_file, f, H, W);
+            }
+        } 
+
+        // Only file no dimensions: load
+        else if (feature_map_file) {
+            f = load_matrix(feature_map_file, &H, &W);
+        } 
+
+        // Kernel matrix
+        // Dimensions present: generate 
+        if (kH > 0 && kW > 0) {
+            g = alloc_matrix(kH, kW);
+            for (int i = 0; i < kH; i++) {
+                for (int j = 0; j < kW; j++) {
+                    g[i * kW + j] = (float) rand() / RAND_MAX;
+                }
+            }
+            // File present: save
+            if (kernel_file){
+                save_matrix(kernel_file, g, kH, kW);
+            }
+        } 
+
+        // Only file: load
+        else if (kernel_file) {
+            g = load_matrix(kernel_file, &kH, &kW);
+        }
+
+        if (f == NULL || g == NULL){
+            printf("Failed to load matrices.\n");
+            if (f) free(f);
+            if (g) free(g);
+            return 0;
+        }
+
+        // Print the feature and kernel matrix
+        printf("Features (f)\n");
+        print_matrix(f, H, W);
+        printf("Kernels (g)\n");
+        print_matrix(g, kH, kW);  
+    
+        // Start timer and convolute
+        int o_H = (H + sH - 1) / sH;
+        int o_W = (W + sW - 1) / sW;
+        float *o = alloc_matrix(o_H, o_W);
+        
+        clock_t CPU_begin = clock();
+        double WALL_begin = omp_get_wtime(); 
+
+        // should sending be counted on the timer? idk
+        for (int i = 1; i < np; i++) {
+            printf("Master - i: %i\n", i);
+            MPI_Send(&f, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&H, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&W, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&g, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&kH, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&kW, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&sH, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&sW, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&o, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        }
+
+        MPI_Recv(&f, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        clock_t CPU_end = clock();
+        double WALL_end = omp_get_wtime(); 
+        double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in seconds
+        double WALL_time = WALL_end - WALL_begin;
+
+        // Performance
+        printf("sH = %d, sW = %d\n", sH, sW);
+        printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
+        printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
+
+        // free(f);
+        // free(g);
+        // free(o);
+    } 
+    // slave processes should recieve their portions of the processing
+    else {
+        int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
+        float *f = NULL, *g = NULL, *o = NULL;
+        MPI_Recv(&f, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&H, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&W, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&g, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&kH, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&kW, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&sH, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&sW, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&o, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("pid: %i\n", pid);
+        
+        mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
+    }
     MPI_Finalize();
 
-    clock_t CPU_end = clock();
-    double WALL_end = omp_get_wtime(); 
-    double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in seconds
-    double WALL_time = WALL_end - WALL_begin;
-
     // Save output if requested
-    if (output_file) save_matrix(output_file, o, o_H, o_W);
-    printf("Output (o)\n");
-    print_matrix(o, o_H, o_W);  
-
-    // Performance
-    printf("sH = %d, sW = %d\n", sH, sW);
-    printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
-    printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
-
-    free(f);
-    free(g);
-    free(o);
+    // if (output_file) save_matrix(output_file, o, o_H, o_W);
+    // printf("Output (o)\n");
+    // print_matrix(o, o_H, o_W);  
 }
