@@ -198,21 +198,27 @@ int main(int argc, char *argv[]) {
         double WALL_begin = omp_get_wtime(); 
 
         // should sending be counted on the timer? idk
-        for (int i = 1; i < np; i++) {
-            printf("Master - i: %i\n", i);
-            MPI_Send(&f, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        int process_workload = H*W / np;
+
+        for (int i = 1; i < np; i++) {            
+            MPI_Send(&f, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&H, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&W, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&g, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&g, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&kH, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&kW, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&sH, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&sW, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&o, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&o, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&o, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
         }
 
-        MPI_Recv(&f, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+        for (int i = 1; i < np; i++) {
+            int success;
+            MPI_Recv(&success, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("Master - success: %i", success);
+        }
         clock_t CPU_end = clock();
         double WALL_end = omp_get_wtime(); 
         double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in seconds
@@ -231,18 +237,25 @@ int main(int argc, char *argv[]) {
     else {
         int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
         float *f = NULL, *g = NULL, *o = NULL;
-        MPI_Recv(&f, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        int start_H, start_W;
+        MPI_Recv(&f, 1, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&H, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&W, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&g, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&g, 1, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&kH, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&kW, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&sH, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&sW, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&o, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&o, 1, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&start_H, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&start_W, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("pid: %i\n", pid);
         
         mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
+
+        // sends message to confirm completion
+        int success = 1;
+        MPI_Send(&success, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
     MPI_Finalize();
 

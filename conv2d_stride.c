@@ -9,33 +9,7 @@
 #include <stdio.h>
 
 // the mpi version of convolution should have an index value that dictates where the convolution starts and ends.
-void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {
-    int pid, np;
-    MPI_Comm_rank(MPI_COMM_WORLD, &pid);
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
-    printf("pid: %i, np: %i\n", pid, np);
-
-    int array_split_per_process = H*W / np;
-    printf("each slave process will compute in increments of %i\n", array_split_per_process);
-
-    // master process that gathers output together
-    if (pid == 0) {
-        
-        for (int i = 1; i < np - 1; i++) {
-            // each slave process returns their output 
-            //MPI_Recv(&array_split_per_process, 1, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
-        }
-    } 
-    // slave processes, receive arrays and compute using conv2d_stride
-    else {
-        int index = array_split_per_process * pid;
-        printf("pid: %i, index: %i\n", pid, index);
-
-        // allocate a temporary matrix for just the size the process needs?
-        //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
-    }
-
-
+void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm, int start_H, int start_W) {
     // For odd-sized kernels, the anchor is the exact center.
     // For even-sized kernels, anchor is chosen so the kernel is slightly top-left biased.
     int anchorH = kH / 2;
@@ -51,8 +25,8 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     int out_idx = 0;
 
     // Loop over output positions with stride
-    for (int i = 0; i < H; i += sH) {
-        for (int j = 0; j < W; j += sW) {
+    for (int i = start_H; i < H; i += sH) {
+        for (int j = start_W; j < W; j += sW) {
             float sum = 0.0f;
 
             // Loop over every element in the kernel
