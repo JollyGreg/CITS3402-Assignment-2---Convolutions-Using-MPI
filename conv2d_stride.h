@@ -23,5 +23,4 @@ void conv2d_stride(
     float *output
 );
 
-
 #endif
