@@ -16,5 +16,12 @@ void mpi_conv2d_stride(
     MPI_Comm comm                  // communicator
 );
 
+void conv2d_stride(
+    float *f, int H, int W, 
+    float *g, int kH, int kW, 
+    int sH, int sW, 
+    float *output
+);
+
 
 #endif

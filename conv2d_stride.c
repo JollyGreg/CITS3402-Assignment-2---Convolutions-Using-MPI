@@ -13,13 +13,12 @@
 // the mpi version of convolution should have an index value that dictates where the convolution starts and ends.
 void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {
     int pid, np;
-    MPI_Comm_rank(MPI_COMM_WORLD, &pid);
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    MPI_Comm_rank(comm, &pid);
+    MPI_Comm_size(comm, &np);
     
     // Calculate output dimensions
     int outH = (H + sH - 1) / sH;
     int outW = (W + sW - 1) / sW;
-    int total_output_size = outH * outW;
     
     // Divide work by output rows
     int rows_per_process = outH / np;
@@ -31,7 +30,7 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     // Calculate local output size
     int local_output_size = (end_row - start_row) * outW;
     float *local_output = (float*)malloc(local_output_size * sizeof(float));
-    
+
     // Anchor calculation
     int anchorH = kH / 2;
     int anchorW = kW / 2;
@@ -78,12 +77,12 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
             int p_rows = (p == np - 1) ? outH - p * rows_per_process : rows_per_process;
             int p_size = p_rows * outW;
             
-            MPI_Recv(output + offset, p_size, MPI_FLOAT, p, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(output + offset, p_size, MPI_FLOAT, p, 0, comm, MPI_STATUS_IGNORE);
             offset += p_size;
         }
     } else {
         // Send local result to process 0
-        MPI_Send(local_output, local_output_size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(local_output, local_output_size, MPI_FLOAT, 0, 0, comm);
     }
     
     free(local_output);

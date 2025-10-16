@@ -26,6 +26,8 @@
 #include <math.h>
 #include <omp.h>
 #include <mpi.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "matrix.h"
 #include "conv2d_stride.h"
@@ -104,6 +106,11 @@ int main(int argc, char *argv[]) {
     // Seed random number generator
     srand(42);
 
+    int rank = 0, size = 1;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     char *feature_map_file = NULL;
     char *kernel_file = NULL;
     char *output_file = NULL;
@@ -176,11 +183,13 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Print the feature and kernel matrix
-    printf("Features (f)\n");
-    print_matrix(f, H, W);
-    printf("Kernels (g)\n");
-    print_matrix(g, kH, kW);   
+    // Print the feature and kernel matrix (rank 0 only)
+    if (rank == 0) {
+        printf("Features (f)\n");
+        print_matrix(f, H, W);
+        printf("Kernels (g)\n");
+        print_matrix(g, kH, kW);
+    }
 
     // Start timer and convolute
     int o_H = (H + sH - 1) / sH;
@@ -190,26 +199,33 @@ int main(int argc, char *argv[]) {
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
 
-    MPI_Init(&argc, &argv);
     mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
-    MPI_Finalize();
+    //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
+
+    // All ranks return from mpi_conv2d_stride; results are gathered on rank 0
 
     clock_t CPU_end = clock();
     double WALL_end = omp_get_wtime(); 
     double CPU_time = (double)(CPU_end - CPU_begin) / CLOCKS_PER_SEC; //time in seconds
     double WALL_time = WALL_end - WALL_begin;
 
-    // Save output if requested
-    if (output_file) save_matrix(output_file, o, o_H, o_W);
-    printf("Output (o)\n");
-    print_matrix(o, o_H, o_W);  
+    // Save and print output from rank 0 only
+    if (rank == 0) {
+        if (output_file) save_matrix(output_file, o, o_H, o_W);
+        printf("Output (o)\n");
+        print_matrix(o, o_H, o_W);
+    }
 
-    // Performance
-    printf("sH = %d, sW = %d\n", sH, sW);
-    printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
-    printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
+    // Performance (rank 0 only)
+    if (rank == 0) {
+        printf("sH = %d, sW = %d\n", sH, sW);
+        printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
+        printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
+    }
 
     free(f);
     free(g);
     free(o);
+
+    MPI_Finalize();
 }
