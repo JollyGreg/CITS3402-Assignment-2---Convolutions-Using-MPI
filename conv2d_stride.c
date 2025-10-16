@@ -7,6 +7,8 @@
 #include <omp.h>
 #include <mpi.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // the mpi version of convolution should have an index value that dictates where the convolution starts and ends.
 void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {

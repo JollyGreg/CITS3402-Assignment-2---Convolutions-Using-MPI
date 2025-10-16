@@ -26,8 +26,6 @@
 #include <math.h>
 #include <omp.h>
 #include <mpi.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "matrix.h"
 #include "conv2d_stride.h"
