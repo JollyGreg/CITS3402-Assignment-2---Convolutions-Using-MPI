@@ -13,10 +13,20 @@
 // - introducing MPI
 //      - DONE: Initializing MPI
 //      - doing convolutions on array
-//          - need to have edit the conv2d_stride func so that each process only does its share of the work
-//      - gathering all answers together
+//          - DONE: need to have edit the conv2d_stride func so that each process only does its share of the work (needs double checking)
+//      - DONE: gathering all answers together
 // - testing
 // - report writting
+
+
+// Notes:
+// check since all ranks are running main do they unnecessarily all alocate matrix space and other setup
+//      does it matter if each rank allocate matrix space itself or should only rank 0 do it and send to ranks?
+//      potentially use MPI_Bcast to share common data (like matrix dimensions) among all ranks
+//      each rank should only allocate memory for its portion of the data
+// check if each rank is only doing its share (i.e. no overlap)
+// when matrix is small ranks might be unnecessarily used (i think since 4 ranks being used, bad when rows < 4)
+
 
 #include <stdio.h> 
 #include <unistd.h>
@@ -35,28 +45,6 @@
 #include <bits/getopt_core.h>
 
 
-// Prototypes
-void create_matrix(char *filename, float **f, int H, int W);
-void write_matrix(char *filename, float **f, int H, int W);
-void randomize_matrix(float **f, int H, int W);
-
-void free_matrix(float **f, int H, int W);
-
-// void conv2d_stride(float **f, int H, int W, float **g, int kH, int kW, int sH, int sW, float **output);
-// float **f, // input feature map (padded)
-// int H, int W, // global input size
-// float **g, // kernel
-// int kH, int kW, // kernel size
-// int sH, int sW, // stride in height and width
-// float **output // local output
-// MPI_Comm comm // communicator
-
-
-// void conv2d_stride(
-//    float **f, int H, int W, 
-//    float **g, int kH, int kW, 
-//    int sH, int sW, float **output) {
-//};
 
 void randomize_matrix(float **f, int H, int W) {
     // Follows same structure as load_matrix, just has rand input
