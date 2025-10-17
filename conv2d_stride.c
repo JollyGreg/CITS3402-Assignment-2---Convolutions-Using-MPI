@@ -25,19 +25,48 @@ void mpi_conv2d_stride(float *local_f, int H, int W, float *g, int kH, int kW, i
     int end_element = (rank == size - 1) ? total_elements : start_element + elements_per_process;
     int local_output_size = end_element - start_element;
     float *local_output = (float*)malloc(local_output_size * sizeof(float));
-    float val;
-    int local_idx = 0;
+    
+    // Anchor calculation
+    int anchorH = kH / 2;
+    int anchorW = kW / 2;
+    if (kH % 2 == 0) anchorH = kH / 2 - 1;
+    if (kW % 2 == 0) anchorW = kW / 2 - 1;
+    
+    int local_f_idx = 0;  // Index to read from local_f
+    int local_out_idx = 0;  // Index to write to local_output
 
-    for (int x = 0; x < elements_per_process; x++) {
-        val = local_f[x];
+    // Each rank computes its assigned output elements
+    for (int element = start_element; element < end_element; element++) {
+        // Convert linear element index to 2D output coordinates
+        int out_i = element / outW;
+        int out_j = element % outW;
+        
+        // Convert output coordinates to input coordinates
+        int i = out_i * sH;
+        int j = out_j * sW;
+        
         float sum = 0.0f;
-        for (int m = 0; m < kH; m++){
-            for (int n = 0; n < kW; n++){
+        
+        // Convolution kernel loop
+        for (int m = 0; m < kH; m++) {
+            for (int n = 0; n < kW; n++) {
+                int x = i + m - anchorH;
+                int y = j + n - anchorW;
+                
+                float val = 0.0f;
+                if (x >= 0 && x < H && y >= 0 && y < W) {
+                    // Read next value from local_f (in same order indices were gathered)
+                    val = local_f[local_f_idx++];
+                }
                 sum += val * g[m * kW + n];
             }
         }
-        local_output[local_idx++] = sum;
+        
+        local_output[local_out_idx++] = sum;
     }
+    
+    // Synchronize all ranks before gathering
+    MPI_Barrier(comm);
     
     // Gather results at process 0
     if (rank == 0) {

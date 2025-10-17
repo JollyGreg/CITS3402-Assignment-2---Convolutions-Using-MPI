@@ -176,15 +176,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    // Start timer on rank 0 after all ranks are synchronized
-    clock_t CPU_begin = 0;
-    double WALL_begin = 0.0;
-    if (rank == 0) {
-        CPU_begin = clock();
-        WALL_begin = omp_get_wtime();
-    } 
 
     // Broadcast dimensions to all ranks
     MPI_Bcast(&H, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -205,6 +196,9 @@ int main(int argc, char *argv[]) {
     int anchorW = kW / 2;
     if (kH % 2 == 0) anchorH = kH / 2 - 1;
     if (kW % 2 == 0) anchorW = kW / 2 - 1;
+    
+    // Start timer for local_f creation
+    double local_f_start = MPI_Wtime();
     
     // Allocate based on maximum possible indices needed
     int max_local_elements = (end_element - start_element) * kH * kW;
@@ -271,6 +265,11 @@ int main(int argc, char *argv[]) {
         MPI_Recv(local_f, idx_count, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     
+    // End timer for local_f creation
+    double local_f_end = MPI_Wtime();
+    double local_f_time = local_f_end - local_f_start;
+
+    
     if (rank != 0) {
         //f = alloc_matrix(H, W);
         g = alloc_matrix(kH, kW);
@@ -292,9 +291,15 @@ int main(int argc, char *argv[]) {
     int o_H = (H + sH - 1) / sH;
     int o_W = (W + sW - 1) / sW;
     float *o = alloc_matrix(o_H, o_W);
-    
+    MPI_Barrier(MPI_COMM_WORLD);
 
-
+    // Start timer on rank 0 after all ranks are synchronized
+    clock_t CPU_begin = 0;
+    double WALL_begin = 0.0;
+    if (rank == 0) {
+        CPU_begin = clock();
+        WALL_begin = omp_get_wtime();
+    } 
 
     mpi_conv2d_stride(local_f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
     //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
@@ -313,6 +318,7 @@ int main(int argc, char *argv[]) {
         print_matrix(o, o_H, o_W);
 
         // Performance results
+        printf("local_f creation took %.6f seconds\n", local_f_time);
         printf("sH = %d, sW = %d\n", sH, sW);
         printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
         printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
