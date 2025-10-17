@@ -20,15 +20,16 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     int outH = (H + sH - 1) / sH;
     int outW = (W + sW - 1) / sW;
     
-    // Divide work by output rows
-    int rows_per_process = outH / np;
-    int start_row = pid * rows_per_process;
-    int end_row = (pid == np - 1) ? outH : start_row + rows_per_process;
+    // Divide work by output elements
+    int total_elements = outH * outW;
+    int elements_per_process = total_elements / np;
+    int start_element = pid * elements_per_process;
+    int end_element = (pid == np - 1) ? total_elements : start_element + elements_per_process;
     
-    printf("Process %d: computing output rows %d to %d\n", pid, start_row, end_row-1);
+    printf("Process %d: computing output elements %d to %d\n", pid, start_element, end_element-1);
     
-    // Calculate local output size
-    int local_output_size = (end_row - start_row) * outW;
+    // Allocate local output buffer
+    int local_output_size = end_element - start_element;
     float *local_output = (float*)malloc(local_output_size * sizeof(float));
 
     // Anchor calculation
@@ -39,31 +40,33 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     
     int local_idx = 0;
     
-    // Each process only computes ITS assigned rows
-    for (int out_i = start_row; out_i < end_row; out_i++) {
-        for (int out_j = 0; out_j < outW; out_j++) {
-            // Convert output coordinates to input coordinates
-            int i = out_i * sH;
-            int j = out_j * sW;
-            
-            float sum = 0.0f;
-            
-            // Convolution kernel loop
-            for (int m = 0; m < kH; m++) {
-                for (int n = 0; n < kW; n++) {
-                    int x = i + m - anchorH;
-                    int y = j + n - anchorW;
-                    
-                    float val = 0.0f;
-                    if (x >= 0 && x < H && y >= 0 && y < W) {
-                        val = f[x * W + y];
-                    }
-                    sum += val * g[m * kW + n];
+    // Each process computes its assigned elements
+    for (int element = start_element; element < end_element; element++) {
+        // Convert linear element index to 2D output coordinates
+        int out_i = element / outW;
+        int out_j = element % outW;
+        
+        // Convert output coordinates to input coordinates
+        int i = out_i * sH;
+        int j = out_j * sW;
+        
+        float sum = 0.0f;
+        
+        // Convolution kernel loop
+        for (int m = 0; m < kH; m++) {
+            for (int n = 0; n < kW; n++) {
+                int x = i + m - anchorH;
+                int y = j + n - anchorW;
+                
+                float val = 0.0f;
+                if (x >= 0 && x < H && y >= 0 && y < W) {
+                    val = f[x * W + y];
                 }
+                sum += val * g[m * kW + n];
             }
-            
-            local_output[local_idx++] = sum;
         }
+        
+        local_output[local_idx++] = sum;
     }
     
     // Gather results at process 0
@@ -74,8 +77,9 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
         // Receive from other processes
         int offset = local_output_size;
         for (int p = 1; p < np; p++) {
-            int p_rows = (p == np - 1) ? outH - p * rows_per_process : rows_per_process;
-            int p_size = p_rows * outW;
+            int p_start = p * elements_per_process;
+            int p_end = (p == np - 1) ? total_elements : p_start + elements_per_process;
+            int p_size = p_end - p_start;
             
             MPI_Recv(output + offset, p_size, MPI_FLOAT, p, 0, comm, MPI_STATUS_IGNORE);
             offset += p_size;

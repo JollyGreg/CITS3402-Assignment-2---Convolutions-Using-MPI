@@ -25,8 +25,8 @@
 //      potentially use MPI_Bcast to share common data (like matrix dimensions) among all ranks
 //      each rank should only allocate memory for its portion of the data
 // check if each rank is only doing its share (i.e. no overlap)
-// when matrix is small ranks might be unnecessarily used (i think since 4 ranks being used, bad when rows < 4)
-
+// DONE:when matrix is small ranks might be unnecessarily used (i think since 4 ranks being used, bad when rows < 4)
+//      fix by allocating work based on number of output elements rather than rows
 
 #include <stdio.h> 
 #include <unistd.h>
