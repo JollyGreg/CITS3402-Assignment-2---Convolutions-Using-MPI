@@ -11,74 +11,44 @@
 #include <string.h>
 
 // the mpi version of convolution should have an index value that dictates where the convolution starts and ends.
-void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {
-    int pid, np;
-    MPI_Comm_rank(comm, &pid);
-    MPI_Comm_size(comm, &np);
+void mpi_conv2d_stride(float *local_f, int H, int W, float *g, int kH, int kW, int sH, int sW, float *output, MPI_Comm comm) {
+    int rank, size;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &size);
     
-    // Calculate output dimensions
+    // Calculate which input elements each rank needs
     int outH = (H + sH - 1) / sH;
     int outW = (W + sW - 1) / sW;
-    
-    // Divide work by output elements
     int total_elements = outH * outW;
-    int elements_per_process = total_elements / np;
-    int start_element = pid * elements_per_process;
-    int end_element = (pid == np - 1) ? total_elements : start_element + elements_per_process;
-    
-    printf("Process %d: computing output elements %d to %d\n", pid, start_element, end_element-1);
-    
-    // Allocate local output buffer
+    int elements_per_process = total_elements / size;
+    int start_element = rank * elements_per_process;
+    int end_element = (rank == size - 1) ? total_elements : start_element + elements_per_process;
     int local_output_size = end_element - start_element;
     float *local_output = (float*)malloc(local_output_size * sizeof(float));
-
-    // Anchor calculation
-    int anchorH = kH / 2;
-    int anchorW = kW / 2;
-    if (kH % 2 == 0) anchorH = kH / 2 - 1;
-    if (kW % 2 == 0) anchorW = kW / 2 - 1;
-    
+    float val;
     int local_idx = 0;
-    
-    // Each process computes its assigned elements
-    for (int element = start_element; element < end_element; element++) {
-        // Convert linear element index to 2D output coordinates
-        int out_i = element / outW;
-        int out_j = element % outW;
-        
-        // Convert output coordinates to input coordinates
-        int i = out_i * sH;
-        int j = out_j * sW;
-        
+
+    for (int x = 0; x < elements_per_process; x++) {
+        val = local_f[x];
         float sum = 0.0f;
-        
-        // Convolution kernel loop
-        for (int m = 0; m < kH; m++) {
-            for (int n = 0; n < kW; n++) {
-                int x = i + m - anchorH;
-                int y = j + n - anchorW;
-                
-                float val = 0.0f;
-                if (x >= 0 && x < H && y >= 0 && y < W) {
-                    val = f[x * W + y];
-                }
+        for (int m = 0; m < kH; m++){
+            for (int n = 0; n < kW; n++){
                 sum += val * g[m * kW + n];
             }
         }
-        
         local_output[local_idx++] = sum;
     }
     
     // Gather results at process 0
-    if (pid == 0) {
+    if (rank == 0) {
         // Copy local result to final output
         memcpy(output, local_output, local_output_size * sizeof(float));
         
         // Receive from other processes
         int offset = local_output_size;
-        for (int p = 1; p < np; p++) {
+        for (int p = 1; p < size; p++) {
             int p_start = p * elements_per_process;
-            int p_end = (p == np - 1) ? total_elements : p_start + elements_per_process;
+            int p_end = (p == size - 1) ? total_elements : p_start + elements_per_process;
             int p_size = p_end - p_start;
             
             MPI_Recv(output + offset, p_size, MPI_FLOAT, p, 0, comm, MPI_STATUS_IGNORE);
