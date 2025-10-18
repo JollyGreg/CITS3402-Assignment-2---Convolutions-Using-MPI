@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
         // Performance
         printf("sH = %d, sW = %d\n", sH, sW);
         printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
-        printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
+        printf("The WALL time spent for %dx%d * %dx%d was %fs\n\n", H, W, kH, kW, WALL_time);
     }
 
     free(f);
