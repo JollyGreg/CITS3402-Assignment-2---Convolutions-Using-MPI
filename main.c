@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
     char *output_file = NULL;
 
     int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
+    int print = 1;
 
     // Parse arguments
 	for (int i = 1; i < argc; i++) {
@@ -117,6 +118,7 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i], "-o")) output_file = argv[++i];
         else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-p")) print = (int)atoll(argv[++i]);
         else {
             printf("Unknown argument: %s\n", argv[i]);
             exit(EXIT_FAILURE);
@@ -280,7 +282,7 @@ int main(int argc, char *argv[]) {
     
 
     // Print the feature and kernel matrix (rank 0 only)
-    if (rank == 0) {
+    if (rank == 0 && print == 1) {
         printf("Features (f)\n");
         print_matrix(f, H, W);
         printf("Kernels (g)\n");
@@ -314,9 +316,10 @@ int main(int argc, char *argv[]) {
 
         // Save and print output
         if (output_file) save_matrix(output_file, o, o_H, o_W);
-        printf("Output (o)\n");
-        print_matrix(o, o_H, o_W);
-
+        if (print == 1) {
+            printf("Output (o)\n");
+            print_matrix(o, o_H, o_W);
+        }
         // Performance results
         printf("local_f creation took %.6f seconds\n", local_f_time);
         printf("sH = %d, sW = %d\n", sH, sW);
