@@ -203,10 +203,10 @@ int main(int argc, char *argv[]) {
     if (rank == 0) {
         if (output_file) save_matrix(output_file, o, o_H, o_W);
         if (print == 1) {
-            printf("Output (o)\n");
+            printf("\nOutput (o)\n");
             print_matrix(o, o_H, o_W);
         }
-        
+
         // Performance
         printf("sH = %d, sW = %d\n", sH, sW);
         printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
