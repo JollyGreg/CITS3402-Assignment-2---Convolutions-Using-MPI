@@ -16,6 +16,8 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     MPI_Comm_rank(comm, &pid);
     MPI_Comm_size(comm, &np);
     
+    double setup_begin = MPI_Wtime();
+    
     // Calculate output dimensions
     int outH = (H + sH - 1) / sH;
     int outW = (W + sW - 1) / sW;
@@ -26,7 +28,8 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     int start_element = pid * elements_per_process;
     int end_element = (pid == np - 1) ? total_elements : start_element + elements_per_process;
     
-    printf("Process %d: computing output elements %d to %d\n", pid, start_element, end_element-1);
+    printf("Process %d: computing output elements %d to %d (%d elements)\n", 
+           pid, start_element, end_element-1, end_element - start_element);
     
     // Allocate local output buffer
     int local_output_size = end_element - start_element;
@@ -38,9 +41,9 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     if (kH % 2 == 0) anchorH = kH / 2 - 1;
     if (kW % 2 == 0) anchorW = kW / 2 - 1;
     
-    int local_idx = 0;
-    
-    // Each process computes its assigned elements
+        
+    // Each process computes its assigned elements with OpenMP parallelization
+    #pragma omp parallel for schedule(dynamic, 16)
     for (int element = start_element; element < end_element; element++) {
         // Convert linear element index to 2D output coordinates
         int out_i = element / outW;
@@ -52,21 +55,25 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
         
         float sum = 0.0f;
         
-        // Convolution kernel loop
-        for (int m = 0; m < kH; m++) {
-            for (int n = 0; n < kW; n++) {
-                int x = i + m - anchorH;
-                int y = j + n - anchorW;
-                
-                float val = 0.0f;
-                if (x >= 0 && x < H && y >= 0 && y < W) {
-                    val = f[x * W + y];
-                }
-                sum += val * g[m * kW + n];
+        // Convolution kernel loop with reduction
+        #pragma omp simd reduction(+:sum)
+        for (int mn = 0; mn < kH * kW; mn++) {
+            int m = mn / kW;
+            int n = mn % kW;
+            
+            int x = i + m - anchorH;
+            int y = j + n - anchorW;
+            
+            float val = 0.0f;
+            if (x >= 0 && x < H && y >= 0 && y < W) {
+                val = f[x * W + y];
             }
+            sum += val * g[mn];
         }
         
-        local_output[local_idx++] = sum;
+        // Calculate local index for this element
+        int idx = element - start_element;
+        local_output[idx] = sum;
     }
     
     // Gather results at process 0

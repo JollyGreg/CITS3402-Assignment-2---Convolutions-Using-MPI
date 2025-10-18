@@ -20,11 +20,6 @@
 
 
 // Notes:
-// check since all ranks are running main do they unnecessarily all alocate matrix space and other setup
-//      does it matter if each rank allocate matrix space itself or should only rank 0 do it and send to ranks?
-//      potentially use MPI_Bcast to share common data (like matrix dimensions) among all ranks
-//      each rank should only allocate memory for its portion of the data
-// check if each rank is only doing its share (i.e. no overlap)
 // DONE:when matrix is small ranks might be unnecessarily used (i think since 4 ranks being used, bad when rows < 4)
 //      fix by allocating work based on number of output elements rather than rows
 
@@ -88,7 +83,6 @@ void write_matrix(char *filename, float **f, int H, int W) {
     fclose(fp);
 }
 
-// https://www.geeksforgeeks.org/c/sum-of-an-array-using-mpi/
 
 int main(int argc, char *argv[]) {
     // Seed random number generator
@@ -179,18 +173,24 @@ int main(int argc, char *argv[]) {
         print_matrix(g, kH, kW);
     }
 
-    // Start timer and convolute
+    // Calculate output dimensions
     int o_H = (H + sH - 1) / sH;
     int o_W = (W + sW - 1) / sW;
-    float *o = alloc_matrix(o_H, o_W);
     
+    // Only rank 0 allocates the output array
+    float *o = NULL;
+    if (rank == 0) {
+        o = alloc_matrix(o_H, o_W);
+    }
+    
+    // Synchronize all ranks before starting computation
+    MPI_Barrier(MPI_COMM_WORLD);
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
 
     mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
     //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
 
-    // All ranks return from mpi_conv2d_stride; results are gathered on rank 0
 
     clock_t CPU_end = clock();
     double WALL_end = omp_get_wtime(); 
@@ -202,10 +202,8 @@ int main(int argc, char *argv[]) {
         if (output_file) save_matrix(output_file, o, o_H, o_W);
         printf("Output (o)\n");
         print_matrix(o, o_H, o_W);
-    }
 
-    // Performance (rank 0 only)
-    if (rank == 0) {
+        // Performance
         printf("sH = %d, sW = %d\n", sH, sW);
         printf("The CPU time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, CPU_time);
         printf("The WALL time spent for %dx%d * %dx%d was %fs\n", H, W, kH, kW, WALL_time);
