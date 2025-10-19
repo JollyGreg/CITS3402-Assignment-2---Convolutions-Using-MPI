@@ -77,7 +77,8 @@ int main(int argc, char *argv[]) {
 
     int H = 0, W = 0, kH = 0, kW = 0, sH = 0, sW = 0;
     int print = 1;
-
+    int serial = 0;
+    
     // Parse arguments
 	for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-H")) H = (int)atoll(argv[++i]);
@@ -90,6 +91,7 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i], "-sH")) sH = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-sW")) sW = (int)atoll(argv[++i]);
         else if (!strcmp(argv[i], "-p")) print = (int)atoll(argv[++i]);
+        else if (!strcmp(argv[i], "-serial")) serial = (int)atoll(argv[++i]);
         else {
             printf("Unknown argument: %s\n", argv[i]);
             exit(EXIT_FAILURE);
@@ -99,51 +101,54 @@ int main(int argc, char *argv[]) {
     float *f = NULL, *g = NULL;
     // Feature matrix
     // Dimensions present: generate matrix
-    if (H > 0 && W > 0) {
-        f = alloc_matrix(H, W);
-        for (int i = 0; i < H; i++) {
-            for (int j = 0; j < W; j++) {
-                f[i * W + j] = (float) rand() / RAND_MAX;
+    if (rank == 0) {
+        if (H > 0 && W > 0) {
+            f = alloc_matrix(H, W);
+            for (int i = 0; i < H; i++) {
+                for (int j = 0; j < W; j++) {
+                    f[i * W + j] = (float) rand() / RAND_MAX;
+                }
             }
-        }
 
-        // File present: save
-        if (feature_map_file){
-            save_matrix(feature_map_file, f, H, W);
-        }
-    } 
-
-    // Only file no dimensions: load
-	else if (feature_map_file) {
-		f = load_matrix(feature_map_file, &H, &W);
-	} 
-
-    // Kernel matrix
-    // Dimensions present: generate 
-    if (kH > 0 && kW > 0) {
-        g = alloc_matrix(kH, kW);
-        for (int i = 0; i < kH; i++) {
-            for (int j = 0; j < kW; j++) {
-                g[i * kW + j] = (float) rand() / RAND_MAX;
+            // File present: save
+            if (feature_map_file){
+                save_matrix(feature_map_file, f, H, W);
             }
-        }
-        // File present: save
-        if (kernel_file){
-            save_matrix(kernel_file, g, kH, kW);
-        }
-    } 
+        } 
 
-    // Only file: load
-	else if (kernel_file) {
-		g = load_matrix(kernel_file, &kH, &kW);
-	}
+        // Only file no dimensions: load
+        else if (feature_map_file) {
+            f = load_matrix(feature_map_file, &H, &W);
+        } 
 
-    if (f == NULL || g == NULL){
-        printf("Failed to load matrices.\n");
-        if (f) free(f);
-        if (g) free(g);
-        return 0;
+        // Kernel matrix
+        // Dimensions present: generate 
+        if (kH > 0 && kW > 0) {
+            g = alloc_matrix(kH, kW);
+            for (int i = 0; i < kH; i++) {
+                for (int j = 0; j < kW; j++) {
+                    g[i * kW + j] = (float) rand() / RAND_MAX;
+                }
+            }
+            // File present: save
+            if (kernel_file){
+                save_matrix(kernel_file, g, kH, kW);
+            }
+        } 
+
+        // Only file: load
+        else if (kernel_file) {
+            g = load_matrix(kernel_file, &kH, &kW);
+        }
+
+        if (f == NULL || g == NULL){
+            printf("Failed to load matrices.\n");
+            if (f) free(f);
+            if (g) free(g);
+            return 0;
+        }
     }
+
 
     // Print the feature and kernel matrix (rank 0 only)
     if (rank == 0 && print == 1) {
@@ -152,6 +157,21 @@ int main(int argc, char *argv[]) {
         printf("Kernels (g)\n");
         print_matrix(g, kH, kW);
     }
+
+    // Broadcast dimensions to all ranks
+    MPI_Bcast(&H, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&W, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&kH, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&kW, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (rank != 0) { 
+        f = alloc_matrix(H, W); 
+        g = alloc_matrix(kH, kW); 
+    }
+
+    // Broadcast matrix to all ranks
+    MPI_Bcast(f, H * W, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(g, kH * kW, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
     // Calculate output dimensions
     int o_H = (H + sH - 1) / sH;
@@ -168,9 +188,12 @@ int main(int argc, char *argv[]) {
     clock_t CPU_begin = clock();
     double WALL_begin = omp_get_wtime(); 
 
-    mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
-    //conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
-
+    if (rank == 0 && serial == 1) {
+        conv2d_stride(f, H, W, g, kH, kW, sH, sW, o);
+    } 
+    else {
+        mpi_conv2d_stride(f, H, W, g, kH, kW, sH, sW, o, MPI_COMM_WORLD);
+    }
 
     clock_t CPU_end = clock();
     double WALL_end = omp_get_wtime(); 
@@ -180,6 +203,7 @@ int main(int argc, char *argv[]) {
     // Save and print output from rank 0 only
     if (rank == 0) {
         if (output_file) save_matrix(output_file, o, o_H, o_W);
+
         if (print == 1) {
             printf("\nOutput (o)\n");
             print_matrix(o, o_H, o_W);
