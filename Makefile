@@ -4,7 +4,7 @@
 # Student Number: 23380159
 
 ## Unified Makefile with selectable platforms: setonix and kaya
-## Use: `make setonix` or `make kaya`
+## Use: `make setonix` or `make kaya` in slurm
 
 # make kaya 
 KAYA_CC ?= mpicc
