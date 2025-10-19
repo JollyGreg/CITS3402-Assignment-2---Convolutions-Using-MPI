@@ -17,8 +17,6 @@
 #include "matrix.h"
 #include "conv2d_stride.h"
 
-#include <bits/getopt_core.h>
-
 void randomize_matrix(float **f, int H, int W) {
     // Follows same structure as load_matrix, just has rand input
     f = malloc(sizeof(float*) * (W));
