@@ -3,26 +3,6 @@
 // Student Name: Amir Husain
 // Student Number: 23380159
 
-// To Do:
-// - input handling
-//      - DONE (check?) (looks awesome, haven't seen that way of doing it before): kH and kW handling (not sure how to have multiple character flags)
-// - DONE: generate/save matrix
-// - DONE: convolution basics from input
-// - DONE: padding logic
-// - DONE: stride logic
-// - introducing MPI
-//      - DONE: Initializing MPI
-//      - doing convolutions on array
-//          - DONE: need to have edit the conv2d_stride func so that each process only does its share of the work (needs double checking)
-//      - DONE: gathering all answers together
-// - testing
-// - report writting
-
-
-// Notes:
-// DONE:when matrix is small ranks might be unnecessarily used (i think since 4 ranks being used, bad when rows < 4)
-//      fix by allocating work based on number of output elements rather than rows
-
 #include <stdio.h> 
 #include <unistd.h>
 #include <string.h> 
@@ -38,8 +18,6 @@
 #include "conv2d_stride.h"
 
 #include <bits/getopt_core.h>
-
-
 
 void randomize_matrix(float **f, int H, int W) {
     // Follows same structure as load_matrix, just has rand input

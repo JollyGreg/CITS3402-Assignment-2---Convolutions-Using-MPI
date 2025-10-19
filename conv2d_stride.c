@@ -15,9 +15,7 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     int pid, np;
     MPI_Comm_rank(comm, &pid);
     MPI_Comm_size(comm, &np);
-    
-    double setup_begin = MPI_Wtime();
-    
+        
     // Calculate output dimensions
     int outH = (H + sH - 1) / sH;
     int outW = (W + sW - 1) / sW;
@@ -43,7 +41,7 @@ void mpi_conv2d_stride(float *f, int H, int W, float *g, int kH, int kW, int sH,
     
         
     // Each process computes its assigned elements with OpenMP parallelization
-    #pragma omp parallel for schedule(dynamic, 16)
+    #pragma omp parallel for schedule(static)
     for (int element = start_element; element < end_element; element++) {
         // Convert linear element index to 2D output coordinates
         int out_i = element / outW;
