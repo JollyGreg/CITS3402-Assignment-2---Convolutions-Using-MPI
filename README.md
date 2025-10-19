@@ -1,4 +1,6 @@
 # Parallel 2D Convolution (MPI + OpenMP)
+### Student: Liam Bush (24227223)
+### Student: Amir Husain (23380159)
 
 ## Overview
 
